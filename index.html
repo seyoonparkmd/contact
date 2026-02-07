@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>한양 LDI 전도 카운터 (10개년)</title>
+    <title>한양 LDI 전도 통합 관리 시스템</title>
     <style>
         :root { --primary: #2c3e50; --accent: #3498db; --bg: #f8f9fa; --orange: #e67e22; --danger: #e74c3c; }
-        body { font-family: 'Malgun Gothic', sans-serif; background-color: var(--bg); margin: 0; padding: 10px; color: #333; }
+        body { font-family: 'Malgun Gothic', sans-serif; background-color: var(--bg); margin: 0; padding: 10px; color: #333; line-height: 1.5; }
         .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
         h2 { text-align: center; color: var(--primary); margin: 10px 0 20px; font-size: 1.3em; }
         
         .card { background: #fff; border: 1px solid #eee; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
         .flex-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .section-title { font-weight: bold; color: var(--accent); font-size: 0.9em; display: block; margin-bottom: 10px; }
+        .section-title { font-weight: bold; color: var(--accent); font-size: 0.95em; display: block; margin-bottom: 10px; border-left: 4px solid var(--accent); padding-left: 8px; }
 
         select, input, textarea { width: 100%; box-sizing: border-box; border: 1px solid #ddd; border-radius: 6px; padding: 10px; font-size: 0.95em; margin-bottom: 8px; }
         .input-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
@@ -24,35 +24,42 @@
         .goal-grid input { padding: 5px; font-size: 0.85em; border: 1px solid var(--orange); }
 
         .btn-group { display: flex; gap: 8px; }
-        button { flex: 1; padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1em; }
+        button { flex: 1; padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1em; transition: 0.2s; }
         .btn-save { background: var(--accent); color: white; }
         .btn-share { background: #27ae60; color: white; }
         .btn-toggle { background: #f1f2f6; color: #57606f; padding: 8px; font-size: 0.8em; width: auto; flex: none; border: 1px solid #ddd; }
         
-        /* 초기화 관련 버튼 */
-        .admin-zone { margin-top: 20px; padding-top: 15px; border-top: 2px dashed #eee; }
-        .btn-reset-period { background: #fab1a0; color: #d63031; font-size: 0.85em; margin-bottom: 8px; }
-        .btn-reset-all { background: #dfe6e9; color: #636e72; font-size: 0.75em; }
+        /* 히스토리 영역 */
+        .history-list { max-height: 250px; overflow-y: auto; background: #fafafa; border: 1px solid #eee; border-radius: 8px; padding: 10px; font-size: 0.85em; }
+        .history-item { padding: 10px; border-bottom: 1px solid #eee; margin-bottom: 5px; background: white; border-radius: 5px; }
+        .history-item:last-child { border-bottom: none; }
+        .history-date { font-size: 0.75em; color: #888; margin-bottom: 3px; }
+        .history-name { font-weight: bold; color: var(--primary); }
 
-        table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+        .admin-zone { margin-top: 20px; padding-top: 15px; border-top: 2px dashed #eee; text-align: center; }
+        .btn-reset-period { background: #fab1a0; color: #d63031; font-size: 0.85em; margin-bottom: 8px; width: 100%; }
+        .btn-reset-all { background: #dfe6e9; color: #636e72; font-size: 0.75em; width: 100%; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.85em; margin-top: 5px; }
         th, td { border-bottom: 1px solid #eee; padding: 8px 4px; text-align: center; }
+        th { background: #fcfcfc; color: #666; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>🦁 LDI 반기별 전도 카운터</h2>
+    <h2>🦁 LDI 사역 통합 관리 시스템</h2>
 
     <div class="card">
         <div class="flex-header">
-            <select id="periodSelect" onchange="changePeriod()" style="width:75%; margin:0; font-weight:bold;"></select>
+            <select id="periodSelect" onchange="changePeriod()" style="width:72%; margin:0; font-weight:bold;"></select>
             <button class="btn-toggle" onclick="toggleGoalSettings()">목표 설정 ⚙️</button>
         </div>
         
         <div id="goalSettings" class="card">
-            <span class="section-title" style="color:var(--orange);">✏️ 해당 반기 목표치 수정</span>
+            <span class="section-title" style="color:var(--orange); border-left-color:var(--orange);">✏️ 반기 목표치 수정</span>
             <div class="goal-grid" id="goalInputsGrid"></div>
-            <p style="font-size: 0.7em; color: #888; margin-top: 8px;">*입력 즉시 해당 반기 목표로 저장됩니다.</p>
+            <p style="font-size: 0.7em; color: #888; margin-top: 8px;">*입력 즉시 해당 반기 목표로 개별 저장됩니다.</p>
         </div>
     </div>
 
@@ -66,11 +73,11 @@
             <input type="tel" id="p-phone" placeholder="전화번호">
         </div>
         <input type="text" id="p-info" placeholder="전공/학번/특이사항">
-        <textarea id="p-prayer" placeholder="기도제목 내용"></textarea>
+        <textarea id="p-prayer" placeholder="기도제목 및 나눔 내용" rows="3"></textarea>
         
         <div class="btn-group">
-            <button class="btn-save" onclick="saveAll()">저장 및 누적</button>
-            <button class="btn-share" onclick="shareToKakao()">전체 기록 복사</button>
+            <button class="btn-save" onclick="saveAll()">기록 저장 및 누적</button>
+            <button class="btn-share" onclick="shareToKakao()">전체 기록 복사 📋</button>
         </div>
     </div>
 
@@ -80,11 +87,18 @@
             <thead><tr><th>항목</th><th>누적/목표</th><th>달성률</th></tr></thead>
             <tbody id="statsBody"></tbody>
         </table>
+    </div>
 
-        <div class="admin-zone">
-            <button class="btn-reset-period" onclick="resetCurrentPeriod()">⚠️ 현재 반기 실적 초기화</button>
-            <button class="btn-reset-all" onclick="resetAllData()">전체 데이터 포맷 (10개년)</button>
+    <div class="card">
+        <span class="section-title">📖 누적 기도제목 히스토리</span>
+        <div id="historyList" class="history-list">
+            <p style="color:#999; text-align:center;">저장된 기도제목이 없습니다.</p>
         </div>
+    </div>
+
+    <div class="admin-zone">
+        <button class="btn-reset-period" onclick="resetCurrentPeriod()">⚠️ 현재 반기 실적 초기화</button>
+        <button class="btn-reset-all" onclick="resetAllData()">전체 데이터 포맷 (10개년)</button>
     </div>
 </div>
 
@@ -110,8 +124,7 @@
     }
 
     function loadData() {
-        // 데이터 키값을 고정하여 관리합니다.
-        data = JSON.parse(localStorage.getItem('ldi_10year_vfinal')) || {};
+        data = JSON.parse(localStorage.getItem('ldi_10year_vfinal_full')) || {};
         if (!data[currentPeriod]) {
             data[currentPeriod] = { 
                 goals: {...defaultGoals}, 
@@ -122,6 +135,7 @@
         renderGoalInputs();
         renderDailyInputs();
         updateDisplay();
+        renderHistory();
     }
 
     function renderGoalInputs() {
@@ -143,7 +157,7 @@
     }
 
     function saveToStorage() {
-        localStorage.setItem('ldi_10year_vfinal', JSON.stringify(data));
+        localStorage.setItem('ldi_10year_vfinal_full', JSON.stringify(data));
     }
 
     function toggleGoalSettings() {
@@ -160,50 +174,106 @@
         }).join('');
     }
 
+    function renderHistory() {
+        const logs = data[currentPeriod].prayerLogs;
+        const listDiv = document.getElementById('historyList');
+        if (logs.length === 0) {
+            listDiv.innerHTML = '<p style="color:#999; text-align:center; padding:20px;">저장된 기도제목이 없습니다.</p>';
+            return;
+        }
+        listDiv.innerHTML = logs.map(log => `
+            <div class="history-item">
+                <div class="history-date">${log.date}</div>
+                <div class="history-name">${log.name} ${log.phone ? `(${log.phone})` : ''}</div>
+                <div style="font-size:0.9em; color:#666; margin:3px 0;">${log.info}</div>
+                <div style="white-space:pre-wrap; border-top:1px dotted #eee; padding-top:5px; margin-top:5px;">${log.prayer}</div>
+            </div>
+        `).join('');
+    }
+
     function saveAll() {
-        let added = false;
+        let isCountAdded = false;
         keys.forEach(k => {
             let v = parseInt(document.getElementById(`in-${k}`).value) || 0;
-            if(v > 0) { data[currentPeriod].counts[k] += v; added = true; }
+            if(v > 0) { data[currentPeriod].counts[k] += v; isCountAdded = true; }
         });
-        if (document.getElementById('p-name').value.trim() || document.getElementById('p-prayer').value.trim()) added = true;
 
-        if(!added) return alert("입력된 내용이 없습니다.");
+        const name = document.getElementById('p-name').value.trim();
+        const phone = document.getElementById('p-phone').value.trim();
+        const info = document.getElementById('p-info').value.trim();
+        const prayer = document.getElementById('p-prayer').value.trim();
+
+        if (name || prayer) {
+            data[currentPeriod].prayerLogs.unshift({
+                date: new Date().toLocaleString(),
+                name, phone, info, prayer
+            });
+            isCountAdded = true;
+        }
+
+        if(!isCountAdded) return alert("입력된 내용이 없습니다.");
+        
         saveToStorage();
         updateDisplay();
-        alert("저장되었습니다.");
+        renderHistory();
+        alert("기록이 안전하게 저장되었습니다.");
     }
 
     function shareToKakao() {
         const p = data[currentPeriod];
         const title = document.getElementById('periodSelect').selectedOptions[0].text;
-        let text = `[LDI 전도 보고 - ${title}]\n\n📊 누적 현황:\n`;
-        keys.forEach(k => text += `- ${labels[k]}: ${p.counts[k]} / ${p.goals[k]}\n`);
+        const now = new Date().toLocaleString();
         
-        navigator.clipboard.writeText(text).then(() => alert("복사되었습니다."));
+        let text = `[한양 LDI 사역 보고 - ${now}]\n\n`;
+        
+        // 1. 오늘의 실적
+        let dailyText = "";
+        keys.forEach(k => {
+            let v = parseInt(document.getElementById(`in-${k}`).value) || 0;
+            if(v > 0) dailyText += `- ${labels[k]}: ${v}\n`;
+        });
+        if(dailyText) text += `📍 오늘의 사역 수치:\n${dailyText}\n`;
+
+        // 2. 당일 기도제목 대상자
+        const name = document.getElementById('p-name').value.trim();
+        const phone = document.getElementById('p-phone').value.trim();
+        const prayer = document.getElementById('p-prayer').value.trim();
+        if(name || prayer) {
+            text += `🙏 대상자 기도제목:\n- 이름: ${name}\n- 연락처: ${phone || '없음'}\n- 제목: ${prayer}\n\n`;
+        }
+
+        // 3. 누적 현황
+        text += `📊 [${title}] 누적 현황:\n`;
+        keys.forEach(k => {
+            const cur = p.counts[k], goal = p.goals[k];
+            const pct = goal > 0 ? Math.min(Math.round((cur/goal)*100), 100) : 0;
+            text += `- ${labels[k]}: ${cur}/${goal} (${pct}%)\n`;
+        });
+
+        navigator.clipboard.writeText(text).then(() => {
+            alert("전체 사역 기록이 복사되었습니다! 카톡에 붙여넣으세요.");
+            // 복사 후 당일 입력창만 초기화 (누적 데이터는 보존)
+            keys.forEach(k => document.getElementById(`in-${k}`).value = 0);
+            document.getElementById('p-name').value = "";
+            document.getElementById('p-phone').value = "";
+            document.getElementById('p-info').value = "";
+            document.getElementById('p-prayer').value = "";
+        });
     }
 
-    // --- 초기화 로직 ---
     function resetCurrentPeriod() {
-        const title = document.getElementById('periodSelect').selectedOptions[0].text;
-        if(confirm(`[${title}]의 실적 데이터와 기도제목을 모두 지우시겠습니까?`)) {
-            if(confirm("정말로 초기화하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
-                data[currentPeriod].counts = {contact:0, gospel:0, accept:0, nurture:0, campus:0, saturday:0, worship:0};
-                data[currentPeriod].prayerLogs = [];
-                saveToStorage();
-                updateDisplay();
-                alert("현재 반기 실적이 초기화되었습니다.");
-            }
+        if(confirm("현재 반기 실적과 기도제목 히스토리를 모두 삭제할까요? (목표치는 유지)")) {
+            data[currentPeriod].counts = {contact:0, gospel:0, accept:0, nurture:0, campus:0, saturday:0, worship:0};
+            data[currentPeriod].prayerLogs = [];
+            saveToStorage();
+            location.reload();
         }
     }
 
     function resetAllData() {
-        if(confirm("주의: 2026~2035년 전체 데이터와 설정된 목표치를 모두 삭제하고 처음 상태로 되돌리시겠습니까?")) {
-            if(confirm("모든 데이터가 영구적으로 삭제됩니다. 계속하시겠습니까?")) {
-                localStorage.removeItem('ldi_10year_vfinal');
-                alert("전체 데이터가 포맷되었습니다.");
-                location.reload();
-            }
+        if(confirm("주의: 10년치 모든 데이터와 목표치를 삭제하고 초기화할까요?")) {
+            localStorage.removeItem('ldi_10year_vfinal_full');
+            location.reload();
         }
     }
 
