@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>한양 LDI 전도 카운터 & 기도노트</title>
+    <style>
+        :root { --primary: #2c3e50; --accent: #3498db; --bg: #f8f9fa; }
+        body { font-family: 'Malgun Gothic', sans-serif; background-color: var(--bg); margin: 0; padding: 10px; color: #333; }
+        .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        
+        h2 { text-align: center; color: var(--primary); margin: 10px 0 20px; font-size: 1.3em; }
+        .card { background: #fff; border: 1px solid #eee; padding: 15px; border-radius: 10px; margin-bottom: 15px; }
+        .flex-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .section-title { font-weight: bold; color: var(--accent); font-size: 0.9em; }
+
+        /* 입력창 스타일 */
+        select, input, textarea { width: 100%; box-sizing: border-box; border: 1px solid #ddd; border-radius: 6px; padding: 10px; font-size: 0.95em; margin-bottom: 8px; }
+        .input-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 10px; }
+        .input-group { display: flex; flex-direction: column; font-size: 0.75em; text-align: center; }
+        .input-group input { text-align: center; padding: 8px 0; margin-top: 4px; border: 1px solid #3498db; }
+
+        /* 인적사항 상세 그리드 */
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+        /* 목표 설정 모드 */
+        #goalSettings { display: none; background: #fff9e6; border: 1px solid #ffeaa7; }
+        .goal-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+        .goal-grid input { padding: 5px; font-size: 0.85em; margin-top: 2px; border: 1px solid #fab1a0; }
+
+        /* 버튼 */
+        .btn-group { display: flex; gap: 8px; }
+        button { flex: 1; padding: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1em; }
+        .btn-save { background: var(--accent); color: white; }
+        .btn-share { background: #27ae60; color: white; }
+        .btn-toggle { background: #f1f2f6; color: #57606f; padding: 5px 10px; font-size: 0.8em; width: auto; flex: none; }
+        
+        /* 통계 및 히스토리 */
+        table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+        th, td { border-bottom: 1px solid #eee; padding: 8px 4px; text-align: center; }
+        .history-list { max-height: 200px; overflow-y: auto; font-size: 0.85em; border-top: 1px solid #eee; padding-top: 10px; }
+        .history-item { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dotted #ccc; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🦁 LDI 전도 카운터 & 기도노트</h2>
+
+    <div class="card">
+        <div class="flex-header">
+            <select id="periodSelect" onchange="changePeriod()" style="width:80%; margin:0;"></select>
+            <button class="btn-toggle" onclick="toggleGoalSettings()">⚙️ 목표</button>
+        </div>
+        
+        <div id="goalSettings" class="card">
+            <span class="section-title" style="color:#e67e22;">✏️ 항목별 목표치 설정</span>
+            <div class="goal-grid" id="goalInputsGrid"></div>
+            <button onclick="toggleGoalSettings()" style="background:#e67e22; color:white; padding:5px; font-size:0.8em; margin-top:10px;">설정 완료</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <span class="section-title">📍 오늘의 사역 수치</span>
+        <div class="input-grid" id="dailyInputs"></div>
+
+        <span class="section-title">🙏 당일 만난 사람 상세</span>
+        <div class="info-grid">
+            <input type="text" id="p-name" placeholder="이름 (대상자)">
+            <input type="tel" id="p-phone" placeholder="전화번호">
+        </div>
+        <input type="text" id="p-info" placeholder="전공/학번/특이사항">
+        <textarea id="p-prayer" placeholder="기도제목 및 상담 내용"></textarea>
+        
+        <div class="btn-group">
+            <button class="btn-save" onclick="saveAll()">저장 및 누적</button>
+            <button class="btn-share" onclick="shareToKakao()">📊 기록 전체 복사</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <span class="section-title">📊 현재 누적 현황</span>
+        <table>
+            <thead><tr><th>항목</th><th>누적/목표</th><th>달성률</th></tr></thead>
+            <tbody id="statsBody"></tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <span class="section-title">📖 최근 기도 명단</span>
+        <div id="prayerHistory" class="history-list"></div>
+    </div>
+</div>
+
+<script>
+    const keys = ['contact', 'gospel', 'accept', 'nurture', 'campus', 'saturday', 'worship'];
+    const labels = { contact: "컨택", gospel: "풀복음", accept: "영접", nurture: "양육", campus: "캠퍼스", saturday: "토요훈련", worship: "예배" };
+    const defaultGoals = { contact: 220, gospel: 12, accept: 4, nurture: 1, campus: 1, saturday: 1, worship: 1 };
+
+    let currentPeriod = "";
+    let data = {};
+
+    function init() {
+        const select = document.getElementById('periodSelect');
+        for (let y = 2026; y <= 2035; y++) {
+            for (let h = 1; h <= 2; h++) {
+                let val = `${y}_${h}`, text = `${y}년 ${h===1?'상반기(1-6월)':'하반기(7-12월)'}`;
+                select.add(new Option(text, val));
+            }
+        }
+        currentPeriod = select.value;
+        loadData();
+    }
+
+    function loadData() {
+        data = JSON.parse(localStorage.getItem('ldi_master_v6')) || {};
+        if (!data[currentPeriod]) {
+            data[currentPeriod] = { goals: {...defaultGoals}, counts: {contact:0, gospel:0, accept:0, nurture:0, campus:0, saturday:0, worship:0}, prayerLogs: [] };
+        }
+        renderGoalInputs(); 
+        renderDailyInputs();
+        updateDisplay();
+    }
+
+    function renderGoalInputs() {
+        document.getElementById('goalInputsGrid').innerHTML = keys.map(k => `
+            <div class="input-group">${labels[k]}<input type="number" value="${data[currentPeriod].goals[k]}" onchange="updateGoal('${k}', this.value)"></div>
+        `).join('');
+    }
+
+    function renderDailyInputs() {
+        document.getElementById('dailyInputs').innerHTML = keys.map(k => `
+            <div class="input-group">${labels[k]}<input type="number" id="in-${k}" value="0"></div>
+        `).join('');
+    }
+
+    function updateGoal(key, val) {
+        data[currentPeriod].goals[key] = parseInt(val) || 0;
+        localStorage.setItem('ldi_master_v6', JSON.stringify(data));
+        updateDisplay();
+    }
+
+    function toggleGoalSettings() {
+        const div = document.getElementById('goalSettings');
+        div.style.display = (div.style.display === 'block') ? 'none' : 'block';
+    }
+
+    function updateDisplay() {
+        const p = data[currentPeriod];
+        document.getElementById('statsBody').innerHTML = keys.map(k => {
+            const cur = p.counts[k], goal = p.goals[k];
+            const pct = goal > 0 ? Math.min(Math.round((cur/goal)*100), 100) : 0;
+            return `<tr><td>${labels[k]}</td><td>${cur}/${goal}</td><td>${pct}%</td></tr>`;
+        }).join('');
+
+        document.getElementById('prayerHistory').innerHTML = p.prayerLogs.slice(0, 15).map(log => `
+            <div class="history-item">
+                <b>${log.date} | ${log.name}</b> ${log.phone ? `(${log.phone})` : ''}<br>
+                <small>${log.info}</small><br>
+                ㄴ <span style="color:#666;">${log.prayer}</span>
+            </div>
+        `).join('');
+    }
+
+    function saveAll() {
+        let added = false;
+        keys.forEach(k => {
+            let v = parseInt(document.getElementById(`in-${k}`).value) || 0;
+            if(v > 0) { data[currentPeriod].counts[k] += v; added = true; }
+        });
+
+        const name = document.getElementById('p-name').value.trim();
+        const phone = document.getElementById('p-phone').value.trim();
+        const info = document.getElementById('p-info').value.trim();
+        const prayer = document.getElementById('p-prayer').value.trim();
+
+        if (name || prayer) {
+            data[currentPeriod].prayerLogs.unshift({ date: new Date().toLocaleDateString(), name, phone, info, prayer });
+            added = true;
+        }
+
+        if(!added) return alert("입력된 내용이 없습니다.");
+
+        localStorage.setItem('ldi_master_v6', JSON.stringify(data));
+        updateDisplay();
+        alert("기록이 누적되었습니다. '기록 전체 복사' 버튼을 눌러 공유하세요!");
+    }
+
+    function shareToKakao() {
+        const p = data[currentPeriod];
+        const dateStr = new Date().toLocaleDateString();
+        const periodTitle = document.getElementById('periodSelect').options[document.getElementById('periodSelect').selectedIndex].text;
+        
+        let text = `[한양 LDI 전도 보고 - ${dateStr}]\n\n`;
+
+        // 1. 오늘 수치
+        let dailyText = "";
+        keys.forEach(k => {
+            let v = parseInt(document.getElementById(`in-${k}`).value) || 0;
+            if(v > 0) dailyText += `- ${labels[k]}: ${v}\n`;
+        });
+        if(dailyText) text += `📍 오늘의 사역 수치:\n${dailyText}\n`;
+
+        // 2. 인적사항 & 기도제목
+        const name = document.getElementById('p-name').value.trim();
+        const phone = document.getElementById('p-phone').value.trim();
+        const info = document.getElementById('p-info').value.trim();
+        const prayer = document.getElementById('p-prayer').value.trim();
+        if(name || prayer) {
+            text += `🙏 당일 만난 사람:\n- 이름: ${name}\n- 연락처: ${phone || '없음'}\n- 정보: ${info}\n- 기도제목: ${prayer}\n\n`;
+        }
+
+        // 3. 누적 현황
+        text += `📊 [${periodTitle}] 누적 현황:\n`;
+        keys.forEach(k => text += `- ${labels[k]}: ${p.counts[k]} / ${p.goals[k]}\n`);
+
+        navigator.clipboard.writeText(text).then(() => {
+            alert("공유 내용이 복사되었습니다!");
+            // 초기화
+            keys.forEach(k => document.getElementById(`in-${k}`).value = 0);
+            document.getElementById('p-name').value = "";
+            document.getElementById('p-phone').value = "";
+            document.getElementById('p-info').value = "";
+            document.getElementById('p-prayer').value = "";
+        });
+    }
+
+    function changePeriod() {
+        currentPeriod = document.getElementById('periodSelect').value;
+        loadData();
+    }
+
+    init();
+</script>
+
+</body>
+</html>
